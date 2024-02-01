@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/header.css">
+    <link rel="stylesheet" href="css/base.css">
+    <style>
+      table {
+        border: 1px solid rgb(68, 76, 86);
+        border-radius: 6px;
+        border-spacing: 0;
+        border-collapse: separate;
+        table-layout: fixed;
+        overflow: unset;
+        text-align: left;
+      }
+      tbody {
+        display: table-row-group;
+        vertical-align: middle;
+      }
+      tr {
+        font-size: 14px;
+      }
+      tr:hover {
+        background-color: rgb(45, 51, 59);
+      }
+      td, th {
+        padding-left: 16px;
+        padding-right: 16px;
+        text-align: left;
+      }
+      th {
+        background-color: rgb(45, 51, 59);
+        color: rgb(117, 130, 143);
+        font-size: smaller;
+        height: 30px;
+      }
+      td {
+        border-top: 1px solid rgb(68, 76, 86);
+        height: 40px;
+      }
+
+      .cross {
+        filter: grayscale(1);
+        opacity: .7;
+      }
+      .cross:hover {
+        filter: grayscale(0);
+        opacity: .9;
+      }
+
+      button.confirm-del-dir-button, button.cancel-del-dir-button {
+        background-color: rgba(0,0,0,0);
+        width: 40%;
+        padding: 7px 20px;
+      }
+      button.confirm-del-dir-button {
+        color: darkred;
+        border: 2px solid darkred;
+      }
+      button.confirm-del-dir-button:hover {
+        background-color: darkred;
+        color: white;
+        border: 2px solid darkred;
+      }
+      button.cancel-del-dir-button {
+        color: gray;
+        border: 2px solid gray;
+      }
+      button.cancel-del-dir-button:hover {
+        background-color: gray;
+        color: black;
+        border: 2px solid gray;
+      }
+
+      .running {
+        padding-bottom: 3px;
+        margin-left: 5px;
+      }
+    </style>
+
+    <title>Home | QD</title>
+  </head>
+
+  <body>
+
+    <div class="header">
+      <a href="." class="logo button">
+        <img src="img/logo.png" alt="logo" height="25">
+      </a>
+      <div class="header-right">
+        <a>
+          <img class="invert" src="img/user.png" alt="logout" height="20">
+          <span id="username"></span>
+        </a>
+        <a class="button" href="simulation.html">
+          <img class="invert" src="img/plus.png" alt="new" height="25">
+          New sim
+        </a>
+        <a class="button" href="javascript:apiPostLogout()">
+          <img class="invert" src="img/logout.png" alt="logout" height="20">
+          Logout
+        </a>
+      </div>
+    </div>
+
+    <div class="main-container">
+      <h1 class="text-centered">Simulations</h1>
+
+      <div><p class="error"></p></div>
+
+      <table id="simulations-table" class="rounded-corners">
+        <tr>
+          <th>Id (dir)</th>
+          <th>Status</th>
+          <th>Delete</th>
+        </tr>
+        <!--
+        <tr>
+          <td><a href="simulation.html?id=1">2023-01-25-13-49-02-punti-vicini</a></td>
+          <td>COMPLETE</td>
+          <td><a href="javascript:openModal()" ><img class="cross" src="img/cross.png" alt="cross" height="15"></a></td>
+        </tr>
+        -->
+      </table>
+    </div>
+
+    <div id="modal" class="modal">
+      <div class="modal-content">
+        <span onclick="closeModal()" class="close-modal">&times;</span>
+        <p>Do you want to delete the simulation in the following dir? The simulation will be lost forever.</p>
+        <p class="text-centered">
+          <span id="sim-dir-delete" class="italic"></span><br>
+          Status: <span id="status-delete"></span>
+        </p>
+
+        <div class="text-centered">
+          <button class="cancel-del-dir-button" onclick="closeModal()">Cancel</button>
+          <button class="confirm-del-dir-button" onclick="deleteSimulation()">Delete dir</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- JAVASCRIPT ------------------------------------------------------------------->
+    <script type="text/javascript" src="js/utils.js"></script>
+    <script type="text/javascript" src="js/auth.js"></script>
+    <script type="text/javascript" src="js/simulation.js"></script>
+    <script>
+      const errorP = document.querySelector(".error");
+      const modalDiv = document.getElementById("modal");
+
+      const onDocumentReady = async () => {
+        // Redirect to login if not auth.
+        try {
+          await authOrRedirectToLogin();
+        } catch (exc) {
+          errorP.innerHTML = exc.toString();
+        }
+
+        // Display the username in the header.
+        const username = localStorage.getItem("username");
+        const usernameSpan = document.getElementById("username");
+        usernameSpan.innerHTML = username;
+
+        // Load simulations.
+        try {
+          await loadSimulations();
+        } catch (exc) {
+          errorP.innerHTML = exc.toString();
+        }
+
+        // Close modal when clicking outside.
+        window.onclick = function(event) {
+          if (event.target == modal) {
+            closeModal();
+          }
+        }
+      };
+      document.addEventListener("DOMContentLoaded", onDocumentReady);
+
+      // Get the simulations from the BE and load them in the table.
+      const loadSimulations = async () => {
+        const table = document.getElementById("simulations-table");
+        const sims = await apiGetSimulations();
+        sims.forEach((sim, i) => {
+          const tr = document.createElement("tr");
+          const tdId = document.createElement("td");
+          tdId.innerHTML = `<a href="simulation.html?id=${sim.sim_id}">${sim.sim_id}</a>`;
+          const tdStatus = document.createElement("td");
+          tdStatus.innerHTML = sim.status.replaceAll("_", " ");
+          if (sim.status === "RUNNING") {
+            tdStatus.innerHTML += `<img src="img/spinner.gif" class="running" alt="loading" height="15"></a>`;
+          }
+          if (sim.status.endsWith("NOK")) tdStatus.setAttribute("class", "red");
+          else if (sim.status.endsWith("OK")) tdStatus.setAttribute("class", "green");
+          const tdDelete = document.createElement("td");
+          if (sim.status !== "RUNNING") {
+            tdDelete.innerHTML = `<a href="javascript:openModal('${sim.sim_id}', '${sim.status}')">
+                <img class="cross" src="img/cross.png" alt="cross" height="15"></a>`;
+          }
+          tr.appendChild(tdId);
+          tr.appendChild(tdStatus);
+          tr.appendChild(tdDelete);
+          table.appendChild(tr);
+        });
+      };
+
+      const openModal = (simId, status) => {
+        modalDiv.style.display = "block";
+        const simDirDeleteSpan = document.getElementById("sim-dir-delete");
+        simDirDeleteSpan.innerHTML = simId;
+        const statusDeleteSpan = document.getElementById("status-delete");
+        statusDeleteSpan.innerHTML = status.replaceAll("_", " ");
+      };
+
+      const closeModal = () => {
+        modalDiv.style.display = "none";
+      };
+
+      const deleteSimulation = async () => {
+        const simDirDeleteSpan = document.getElementById("sim-dir-delete");
+        const simId = simDirDeleteSpan.innerHTML;
+
+        try {
+          await apiDeleteSimulation(simId);
+        } catch (exc) {
+          errorP.innerHTML = exc.toString();
+          return;
+        }
+        location.reload();
+      };
+    </script>
+  </body>
+</html>

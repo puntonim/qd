@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/header.css">
+    <link rel="stylesheet" href="css/base.css">
+    <style>
+      .main-container.min-width-80 {
+        /*background-color: black; !* TODO delete me later. *!*/
+        min-width: 80%;
+      }
+
+      .new-sim-id-container h1 {
+        margin-top: 30px;
+        margin-bottom: 30px;
+      }
+      #new-sim-id-input {
+        width: 70%;
+      }
+      #new-sim-form > button, #new-sim-form > input {
+        margin-bottom: 0;
+      }
+
+      .inline-title {
+        font-weight: 500;
+        color: rgba(255, 255, 255, .8);
+        margin-right: 5px;
+      }
+
+      .dropzone-container {
+        border: 4px dashed #aba9a9f6;
+        background-color: rgba(233,232,232,.1);
+        border-radius: 5px;
+        margin: 20px 0px;
+        padding: 1em;
+        text-align: center;
+      }
+      .dropzone-container p {
+        margin: 0;
+      }
+      .dropzone-container img {
+        opacity: 40%;
+        filter: invert(1);
+      }
+
+      .highlight-border {
+        border-color: goldenrod !important;
+        background-color: rgb(213, 198, 161) !important;
+      }
+
+      .browse-button.button-label {
+        display: block;
+        font-size: smaller;
+        margin: 10px auto auto auto;
+        width: fit-content;
+        padding: 5px 25px;
+        color: rgba(255,255,255, .7);
+        background-color: rgba(55,62,71, .4);
+        border: 1px solid #6d747e;;
+      }
+
+      button.upload-button, button.run-button {
+        margin: 10px auto 0;
+        padding: 5px 25px;
+      }
+      button.upload-button:not([disabled]), button.run-button:not([disabled]) {
+        border-color: lightgreen;
+        color: lightgreen;
+      }
+      button.upload-button:not([disabled]):hover, button.run-button:not([disabled]):hover {
+        background-color: lightgreen;
+        color: black;
+        border-color: lightgreen;
+      }
+      button.run-button {
+        margin-left: 30px; /* To keep it centered */
+        padding: 10px 35px;
+      }
+      button.run-button:not([disabled]) {
+        background-color: rgba(0,0,0,0);
+      }
+      button.download-button {
+        padding: 10px 35px;
+      }
+      button.download-button:not([disabled]) {
+        background-color: rgba(0,0,0,0);
+      }
+
+      .chip { margin-right: 5px; }
+      .dot-geo-chip-uploaded, .dot-tib-chip-uploaded {
+        color: black;
+        background-color: rgba(255, 255, 255, .5);
+        padding: 5px 25px;
+      }
+
+      .console {
+        margin-top: 20px;
+        height: 300px;
+        overflow-y: auto;
+        background-color: black;
+        color: greenyellow;
+        border-radius: 8px;
+        font-size: 13px;
+        font-family: monospace;
+        position: relative
+      }
+
+      .log-entries {
+        list-style-type: none;
+        font-family: monospace;
+        margin: 0;
+        padding: 1em;
+      }
+
+      .n-proc-input {
+        color: rgb(173,186,199);
+        background-color: rgb(28, 33, 39);
+        border: none;
+        font-size: 16px;
+      }
+      input.n-proc-input:focus, input.n-proc-input:focus-visible {
+        border: none;
+        outline: none;
+      }
+      input[type=number]::-webkit-inner-spin-button,
+      input[type=number]::-webkit-outer-spin-button {
+         opacity: 1;
+      }
+    </style>
+
+    <title>Simulation | QD</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER ----------------------------------------------------------------------->
+    <div class="header">
+      <a href="." class="logo button">
+        <img src="img/logo.png" alt="logo" height="25">
+      </a>
+      <div class="header-right">
+        <a>
+          <img class="invert" src="img/user.png" alt="logout" height="20">
+          <span id="username"></span>
+        </a>
+        <a class="button" href="simulation.html">
+          <img class="invert" src="img/plus.png" alt="new" height="25">
+          New sim
+        </a>
+        <a class="button" href="javascript:apiPostLogout()">
+          <img class="invert" src="img/logout.png" alt="logout" height="20">
+          Logout
+        </a>
+      </div>
+    </div>
+
+    <!-- MAIN CONTAINER --------------------------------------------------------------->
+    <div class="main-container">
+
+      <!------ Error ------------------------------------------------------------------>
+      <div><p class="error"></p></div>
+
+      <!------ Alt A1: New sim -------------------------------------------------------->
+      <div class="new-sim-id-container" style="display: none;">
+        <h1 class="text-centered">&#x2B50; New simulation &#x2B50;</h1>
+
+        <span>Choose a name or leave this blank:</span>
+
+        <form id="new-sim-form" action="" onsubmit="createNewSimulation(event); return true;">
+          <input autocomplete="off" id="new-sim-id-input" placeholder="Example: single box" type="text" />
+          <button>Create</button>
+        </form>
+        <span class="text-smaller dark-gray italic">Only letters, numbers and - allowed.</span>
+      </div>
+
+      <!------ Alt A2: Existing sim --------------------------------------------------->
+      <div class="existing-sim-container" style="display: none;">
+        <!------ General -------------------------------------------------------------->
+        <div class="general-container">
+          <h2><img class="invert" src="img/info.png" width="21"> General</h2>
+          <div>
+            <span class="inline-title">Simulation ID</span> <span class="simulation-id-span"></span>
+          </div>
+          <div>
+            <span class="inline-title">Status</span> <span class="status-span"></span>
+          </div>
+        </div>
+
+        <!------ Input files ---------------------------------------------------------->
+        <div class="input-files-container">
+          <h2><img class="invert" src="img/upload.png" width="21"> Input files</h2>
+
+          <div id="uploaded-files-container" >
+            <span class="inline-title uploaded-files-title" style="display: none">Uploaded files</span>
+            <div class="chip dot-geo-chip-uploaded" style="display: none;">
+              <span class="dot-geo-file-span">dot.geo</span>
+              <!--<span class="chip-close-button" onclick="this.parentElement.style.display='none'">&times;</span>-->
+            </div>
+            <div class="chip dot-tib-chip-uploaded" style="display: none;">
+              <span class="dot-tib-file-span">dot.tib</span>
+              <!--<span class="chip-close-button" onclick="this.parentElement.style.display='none'">&times;</span>-->
+            </div>
+          </div>
+
+          <div class="drag-upload-container" style="display: none;">
+            <div
+              class="dropzone-container"
+              ondrop="onDropHandler(event);"
+              ondragenter="onDragEnterHandler(event);"
+              ondragleave="onDragLeaveHandler(event);"
+              ondragover="onDragOverHandler(event);">
+
+              <div class="spinner-upload-container" style="display: none;">
+                <img src="img/spinner.gif" width="25"> Uploading...
+              </div>
+
+              <div class="upload-chips-and-button-container">
+                <div>
+                  <div class="chip dot-geo-chip-to-upload" style="display: none;">
+                    <span class="dot-geo-file-span">dot.geo</span>
+                    <span class="chip-close-button" onclick="removeInputFileToUpload('dot.geo')">&times;</span>
+                  </div>
+                  <div class="chip dot-tib-chip-to-upload" style="display: none;">
+                    <span class="dot-tib-file-span">dot.tib</span>
+                    <span class="chip-close-button" onclick="removeInputFileToUpload('dot.tib')">&times;</span>
+                  </div>
+                </div>
+                <div>
+                  <button class="upload-button" onclick="uploadFiles(); true"  style="display: none;">Upload</button>
+                </div>
+              </div>
+
+              <div class="upload-form-container">
+                <img src="img/upload.png" width="50">
+                <p>Drag the files <i>dot.geo</i> and <i>dot.tib</i> or:</p>
+
+                <form class="upload-form">
+                  <!--
+                    Docs: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/file
+                    To filter files: accept="image/*,.pdf".
+                    To accept multiple files: multiple.
+                  -->
+                  <input type="file" multiple id="files-input" name="files-input" accept=".geo,.tib" onchange="onSelectInputFiles(this)" style="display: none;">
+                  <label class="button-label browse-button" for="files-input">Open files...</label>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <div><p class="error input-files-error"></p></div>
+        </div> <!-- Input files container -->
+
+        <!------ Run ------------------------------------------------------------------>
+        <div class="run-container">
+          <h2><img class="invert" src="img/gear.png" width="25"> Run</h2>
+
+          <div>
+            <span class="inline-title">Concurrency (# proc)</span>
+            <input type="number" class="n-proc-input" name="n-proc-input" min="1" max="28" value="8" />
+          </div>
+
+          <div class="text-centered">
+            <button class="run-button" onclick="run()" disabled>Run simulation</button>
+            <img class="spinner-console" src="img/spinner.gif" width="25" style="visibility: hidden;">
+          </div>
+
+          <div class="console" onscroll="onConsoleScroll()">
+            <ul class="log-entries"></ul>
+          </div>
+
+          <div class="perf-logs-container">
+
+          </div>
+        </div> <!-- Run container -->
+
+        <!------ Output files --------------------------------------------------------->
+        <div class="output-files-container">
+          <h2><img class="invert" src="img/download.png" width="21"> Output files</h2>
+
+          <div class="text-centered">
+            <button type="submit" class="download-button" onclick="downloadOutput()" disabled>Download</button>
+          </div>
+        </div> <!-- Output files -->
+
+      </div> <!-- Existing sim container -->
+
+    </div> <!-- main-container -->
+
+    <!-- JAVASCRIPT ------------------------------------------------------------------->
+    <script type="text/javascript" src="js/utils.js"></script>
+    <script type="text/javascript" src="js/auth.js"></script>
+    <script type="text/javascript" src="js/simulation.js"></script>
+    <script>
+      const errorP = sel(".error");
+      let existingSimulation = null;
+      let inputFilesToUpload = {};
+      let isAutoScrollEnabled = true;
+
+      // DOC READY ---------------------------------------------------------------------
+      const onDocumentReady = async () => {
+        // Redirect to login if not auth.
+        try {
+          await authOrRedirectToLogin();
+        } catch (exc) {
+          errorP.innerHTML = exc.toString();
+        }
+
+        // Display the username in the header.
+        const username = localStorage.getItem("username");
+        const usernameSpan = document.getElementById("username");
+        usernameSpan.innerHTML = username;
+
+        // Check the query params in the url and detect if it is a NEW or
+        //  EXISTING simulation.
+        const urlParams = new URLSearchParams(window.location.search);
+        const simId = urlParams.get("id");
+        if (simId) await onLoadingExistingSimulation(simId);
+        else onNewSimulation();
+      };
+      document.addEventListener("DOMContentLoaded", onDocumentReady);
+
+      // EXISTING SIM ------------------------------------------------------------------
+      const onLoadingExistingSimulation = async (simId) => {
+        const mainContainer = sel(".main-container");
+        mainContainer.classList.add("min-width-80");
+
+        // Get sim details from the BE.
+        try {
+          existingSimulation = await apiGetSimulation(simId);
+        } catch (exc) {
+          errorP.innerHTML = exc.toString();
+          return;
+        }
+        console.log(existingSimulation);
+
+        // General container.
+        sel(".simulation-id-span").innerText = existingSimulation.sim_id;
+        updateStatus(existingSimulation.status);
+
+        // Input files containers.
+        existingSimulation.input_files.forEach((inputFile, i) => {
+          addUploadedInputFile(inputFile);
+        });
+        if (!(existingSimulation.has_all_input_files)) {
+          show(".drag-upload-container");
+        }
+
+        // Enable the "Run simulation button".
+        if (existingSimulation.has_all_input_files) sel(".run-button").disabled = false;
+
+        // Load the logs (if any).
+        loadRunLog();
+        loadPerfLogs();
+
+        // Download output dir.
+        if (existingSimulation.has_output_dir && (!(existingSimulation.status === "RUNNING"))) {
+          sel(".download-button").disabled = false;
+        }
+
+        // Finally show the existing-sim-container.
+        show(".existing-sim-container");
+      };
+
+      // NEW SIM -----------------------------------------------------------------------
+      const onNewSimulation = () => {
+        const container = sel(".new-sim-id-container");
+        container.style.display = "block";
+      };
+
+      // Everything else ---------------------------------------------------------------
+      const createNewSimulation = async (event) => {
+        event.preventDefault();
+        const input = document.getElementById("new-sim-id-input");
+        const label = input.value;
+
+        let response = null;
+        try {
+          response = await apiCreateSimulation(label);
+        } catch (exc) {
+          errorP.innerHTML = exc.toString();
+          return;
+        }
+        location.href = `?id=${response.sim_id}`;
+      };
+
+      const onSelectInputFiles = (filesInput) => {
+        sel(".input-files-error").innerHTML = "";
+        [...filesInput.files].forEach((file, i) => {
+          console.log(`File[${i}].name = ${file.name}`);
+          addInputFileToUpload(file);
+        });
+        // Set the value to null otherwise if the user selects the same file again
+        //  this fn will not trigger.
+        filesInput.value = null;
+      };
+
+      const addUploadedInputFile = (uploadedFileName) => {
+        console.log("Adding uploaded input file: " + uploadedFileName);
+        if (uploadedFileName.endsWith(".tib")) {
+          show(".dot-tib-chip-uploaded", "inline-block");
+        } else if (uploadedFileName.endsWith(".geo")) {
+          show(".dot-geo-chip-uploaded", "inline-block");
+        }
+        show(".uploaded-files-title", "inline-block");
+      };
+
+      const addInputFileToUpload = (inputFile) => {
+        const thisError = sel(".input-files-error");
+        if (!existingSimulation) {
+          errorP.innerText = "Missing existing simulation";
+        }
+        if (inputFile.name === "dot.tib") {
+          if (existingSimulation.input_files.includes("dot.tib")) {
+            thisError.innerText = "File dot.tob already uploaded";
+          } else {
+            inputFilesToUpload[inputFile.name] = inputFile;
+            show(".dot-tib-chip-to-upload", "inline-block");
+          }
+        } else if (inputFile.name === "dot.geo") {
+          if (existingSimulation.input_files.includes("dot.geo")) {
+            thisError.innerText = "File dot.geo already uploaded";
+          } else {
+            inputFilesToUpload[inputFile.name] = inputFile;
+            show(".dot-geo-chip-to-upload", "inline-block");
+          }
+        }
+        else {
+          thisError.innerText = "Only files dot.geo and dot.tib allowed!";
+        }
+        reactWhenAllRequiredInputFilesToUploadAreSelected();
+      };
+
+      const removeInputFileToUpload = (inputFileName) => {
+        const thisError = sel(".input-files-error");
+        delete inputFilesToUpload[inputFileName];
+        if (inputFileName === "dot.tib") {
+          hide(".dot-tib-chip-to-upload");
+        } else if (inputFileName === "dot.geo") {
+          hide(".dot-geo-chip-to-upload");
+        }
+        else {
+          thisError.innerText = "Only files dot.geo and dot.tib allowed to remove!";
+        }
+        reactWhenAllRequiredInputFilesToUploadAreSelected();
+      };
+
+      const areAllRequiredInputFilesToUploadAreSelected = () => {
+        const allFileNames = existingSimulation.input_files.concat(Object.keys(inputFilesToUpload));
+        return allFileNames.includes("dot.geo") && allFileNames.includes("dot.tib");
+      };
+
+      const reactWhenAllRequiredInputFilesToUploadAreSelected = () => {
+        if (!areAllRequiredInputFilesToUploadAreSelected()) {
+          hide(".upload-button");
+          show(".upload-form-container");
+        } else {
+          show(".upload-button");
+          hide(".upload-form-container");
+        }
+      };
+
+      const uploadFiles = async () => {
+        const thisError = sel(".input-files-error");
+        hide(".upload-chips-and-button-container");
+        show(".spinner-upload-container");
+        try {
+          await apiPostUpload(existingSimulation.sim_id, inputFilesToUpload);
+        } catch (exc) {
+          console.log(exc);
+          thisError.innerHTML = "Upload error<br>" + exc.toString();
+          show("upload-chips-and-button-container");
+          hide("loading-upload-container");
+          return;
+        }
+        location.reload();
+      };
+
+      const onDragEnterHandler = (event) => {
+        event.preventDefault();
+        if (areAllRequiredInputFilesToUploadAreSelected()) return;
+        sel(".dropzone-container").classList.add("highlight-border");
+      };
+
+      const onDragLeaveHandler = (event) => {
+        event.preventDefault();
+        if (areAllRequiredInputFilesToUploadAreSelected()) return;
+        sel(".dropzone-container").classList.remove("highlight-border");
+      };
+
+      const onDragOverHandler = (ev) => {
+        ev.preventDefault();
+        if (areAllRequiredInputFilesToUploadAreSelected()) return;
+        sel(".dropzone-container").classList.add("highlight-border");
+      };
+
+      const onDropHandler = (event) => {
+        event.preventDefault();
+        if (areAllRequiredInputFilesToUploadAreSelected()) return;
+        sel(".input-files-error").innerHTML = "";
+        sel(".dropzone-container").classList.remove("highlight-border");
+
+        if (event.dataTransfer.items) {
+          [...event.dataTransfer.items].forEach((item, i) => {
+            // If dropped items aren't files, do nothing.
+            if (item.kind === "file") {
+              const file = item.getAsFile();
+              addInputFileToUpload(file);
+            }
+          });
+        } else {
+          [...event.dataTransfer.files].forEach((file, i) => {
+            addInputFileToUpload(file);
+          });
+        }
+      };
+
+      const run = async () => {
+        const nProc = sel(".n-proc-input").value;
+        clearLogEnrties();
+        sel(".perf-logs-container").innerHTML = "";
+        onConsoleRunningStatusChange(true);
+        await apiWebsocketRun(existingSimulation.sim_id, nProc, onWsReceivedMessage, onWsOpen, onWsClose, onWsError);
+      };
+
+      const onWsReceivedMessage = (text) => {
+        console.log(`NEW MSG: ${text}`);
+        if (text.startsWith("<[STATUS]>")) {
+          const statusText = text.split("<[STATUS]>")[1];
+          if (statusText.endsWith("RUN_OK")) {
+            sel(".download-button").disabled = false;
+          } else {
+            sel(".download-button").disabled = true;
+          }
+          return updateStatus(statusText);
+        }
+
+        let className = null;
+        if (text.startsWith("<[ERROR]>")) {
+          className = "red";
+          text = text.slice(9);
+        }
+        appendLogEntry(text, className);
+      };
+
+      const onWsOpen = () => {
+        appendLogEntry("[Websocket open]", "gray");
+        onConsoleRunningStatusChange(true);
+      }
+
+      const onWsClose = () => {
+        appendLogEntry("[Websocket closed]", "gray");
+        onConsoleRunningStatusChange(false);
+        loadPerfLogs();
+      };
+
+      const onWsError = () => {
+        appendLogEntry("Websocket error", "red");
+        onConsoleRunningStatusChange(false);
+        loadPerfLogs();
+      };
+
+      const appendLogEntry = (text, className) => {
+        if (!(text)) return;
+        text.split(/\r?\n/).forEach((t) => {
+          const ul = sel(".log-entries");
+          const li = document.createElement("li");
+          if (className) li.setAttribute("class", className);
+          li.innerHTML = t.trim() || "<br>";
+          ul.appendChild(li);
+          scrollConsoleToBottom();
+        });
+      };
+
+      const clearLogEnrties = () => {
+        sel(".log-entries").innerHTML = "";
+      };
+
+      const updateStatus = (statusText) => {
+        console.log(`NEW STATUS: ${statusText}`);
+        const statusSpan = sel(".status-span");
+        statusSpan.classList.remove("red");
+        statusSpan.classList.remove("green");
+        if (statusText.endsWith("NOK")) {
+          statusSpan.classList.add("red");
+          statusSpan.classList.remove("green");
+        } else if (statusText.endsWith("OK")) {
+          statusSpan.classList.add("class", "green");
+          statusSpan.classList.remove("class", "red");
+        }
+        statusSpan.innerText = statusText;
+      }
+
+      const scrollConsoleToBottom = () => {
+        if (isAutoScrollEnabled) sel(".console").scrollTop = sel(".console").scrollHeight;
+      };
+
+      const onConsoleScroll = () => {
+        const consoleDiv = sel(".console");
+        // Enable the auto-scroll when the (manual or automatic) scrolling reaches the bottom.
+        isAutoScrollEnabled = (consoleDiv.scrollHeight - consoleDiv.scrollTop - consoleDiv.clientHeight) < 1;
+      };
+
+      const onConsoleRunningStatusChange = (isConsoleRunning=false) => {
+        if (isConsoleRunning) {
+          sel(".spinner-console").style.visibility = "visible";
+          sel(".run-button").disabled = true;
+          sel(".n-proc-input").disabled = true;
+        }
+        else {
+          sel(".spinner-console").style.visibility = "hidden";
+          sel(".run-button").disabled = false;
+          sel(".n-proc-input").disabled = false;
+        }
+      };
+
+      const loadRunLog = async () => {
+        let runLog = null;
+        try {
+          runLog = await apiGetRunLog(existingSimulation.sim_id);
+        } catch (exc) {
+          errorP.innerHTML = exc.toString();
+          return;
+        }
+        clearLogEnrties();
+        appendLogEntry(runLog);
+        if (existingSimulation.return_code && (existingSimulation.return_code !== 0)) {
+          appendLogEntry(`Simulation failed with return code ${existingSimulation.return_code}`, "red");
+        }
+      };
+
+      const loadPerfLogs = async () => {
+        let perfLogs = null;
+        try {
+          perfLogs = await apiGetPerfLogs(existingSimulation.sim_id);
+        } catch (exc) {
+          errorP.innerHTML = exc.toString();
+          return;
+        }
+
+        sel(".perf-logs-container").innerHTML = "";
+        for (const key in perfLogs) {
+          perfLogs[key].forEach((text) => {
+            const newDiv = document.createElement("div");
+            newDiv.innerHTML = `<span class="inline-title">${key}</span> ${text}`;
+            sel(".perf-logs-container").appendChild(newDiv);
+          })
+        }
+      };
+
+      const downloadOutput = async () => {
+        const blob = await apiGetDownload(existingSimulation.sim_id);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "output.zip";
+        document.body.appendChild(a); // Tmp append the element to the dom.
+        a.click();
+        a.remove();  // Remove the element again.
+      };
+
+    </script>
+  </body>
+</html>
